@@ -1,0 +1,12 @@
+name: Modelo_hibrido
+title: Modelo_hibrido
+username:
+account: saulogr
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1618192
+bundleId: 2690028
+url: https://saulogr.shinyapps.io/Modelo_hibrido/
+when: 1577217504.02293
+asMultiple: FALSE
+asStatic: FALSE
