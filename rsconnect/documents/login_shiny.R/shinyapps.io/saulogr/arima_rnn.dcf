@@ -1,0 +1,13 @@
+name: arima_rnn
+title: arima_rnn
+username:
+account: saulogr
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1620388
+bundleId: 2694456
+url: https://saulogr.shinyapps.io/arima_rnn/
+when: 1577464828.67121
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: shinyAPP.R|old/server.R|old/ui.R
