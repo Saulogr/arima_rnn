@@ -37,11 +37,56 @@ credentials = data.frame(
   stringsAsFactors = F
 )
 
-header <- dashboardHeader( title = "Simple Dashboard", uiOutput("logoutbtn"))
-
-sidebar <- dashboardSidebar(uiOutput("sidebarpanel")) 
-body <- dashboardBody(shinyjs::useShinyjs(), uiOutput("body"))
-ui<-dashboardPage(header, sidebar, body, skin = "blue")
+# Criação da interface
+ui = navbarPage("Modelo Híbrido", theme = shinytheme("simplex"), id = "tabs",
+                tabPanel("Login",
+                        loginpage
+                ),
+                tabPanel("Importação",
+                         dashboardPage(
+                           dashboardHeader(disable = TRUE),
+                           dashboardSidebar(
+                             checkboxInput("hide.ajuste", "Esconder aba ajuste")
+                           ),
+                           dashboardBody("Essa é a página de importação dos dados",
+                             verbatimTextOutput("status")
+                           )
+                         )
+                         
+                ),
+                tabPanel("Ajuste",
+                         dashboardPage(
+                           dashboardHeader(disable = TRUE),
+                           dashboardSidebar(),
+                           dashboardBody("Essa é a página de ajsute da Série temporal")
+                         )
+                         
+                ),
+                tabPanel("Arima",
+                         dashboardPage(
+                           dashboardHeader(disable = TRUE),
+                           dashboardSidebar(),
+                           dashboardBody("Essa é a página de ajsute do ARIMA")
+                         )
+                         
+                ),
+                tabPanel("Rede Neural",
+                         dashboardPage(
+                           dashboardHeader(disable = TRUE),
+                           dashboardSidebar(),
+                           dashboardBody("Essa é a página de ajuste da rede neural")
+                         )
+                         
+                ),
+                tabPanel("Resultados",
+                         dashboardPage(
+                           dashboardHeader(disable = TRUE),
+                           dashboardSidebar(),
+                           dashboardBody("Essa é a página de resultados")
+                         )
+                         
+                ) 
+)
 
 server <- function(input, output, session) {
   
@@ -72,6 +117,22 @@ server <- function(input, output, session) {
     }    
   })
   
+  # Habilitando as abas
+  observe({
+    if(USER$login == TRUE){
+      showTab("tabs", "Importação")
+      showTab("tabs", "Ajuste")
+      showTab("tabs", "Arima")
+      showTab("tabs", "Rede Neural")
+      showTab("tabs", "Resultados")
+          } else {
+      hideTab("tabs", "Importação")
+      hideTab("tabs", "Ajuste")
+      hideTab("tabs", "Arima")
+      hideTab("tabs", "Rede Neural")
+      hideTab("tabs", "Resultados")
+    }
+  })
   output$logoutbtn <- renderUI({
     req(USER$login)
     tags$li(a(icon("fa fa-sign-out"), "Logout", 
@@ -81,30 +142,15 @@ server <- function(input, output, session) {
                     font-weight: bold; margin:5px; padding: 10px;")
   })
   
-  output$sidebarpanel <- renderUI({
-    if (USER$login == TRUE ){ 
-      sidebarMenu(
-        menuItem("Main Page", tabName = "dashboard", icon = icon("dashboard"))
-      )
-    }
-  })
-  
-  output$body <- renderUI({
-    if (USER$login == TRUE ) {
-      tabItem(tabName ="dashboard", class = "active",
-              fluidRow(
-                box(width = 12, dataTableOutput('results'))
-              ))
-    }
-    else {
-      loginpage
-    }
-  })
-  
+
   output$results <-  DT::renderDataTable({
     datatable(iris, options = list(autoWidth = TRUE,
                                    searching = FALSE))
   })
+  
+  output$status = renderPrint(
+    USER$login
+  )
   
 }
 
