@@ -16,17 +16,11 @@ loginpage <- div(id = "loginpage", style = "width: 500px; max-width: 100%; margi
                      actionButton("login", "SIGN IN", style = "color: white; background-color:#3c8dbc;
                                  padding: 10px 15px; width: 150px; cursor: pointer;
                                  font-size: 18px; font-weight: 600;"),
-                     shinyjs::hidden(
-                       div(id = "nomatch",
-                           tags$p("Oops! Incorrect username or password!",
-                                  style = "color: red; font-weight: 600; 
-                                            padding-top: 5px;font-size:16px;", 
-                                  class = "text-center"))),
                      br(),
                      br(),
-                     tags$code("Username: myuser  Password: mypass"),
-                     br(),
-                     tags$code("Username: myuser1  Password: mypass1")
+                     code(textOutput("avisologin")),
+                    br(),
+                    br()
                    ))
 )
 
@@ -38,16 +32,14 @@ credentials = data.frame(
 )
 
 # Criação da interface
-ui = navbarPage("Modelo Híbrido", theme = shinytheme("simplex"), id = "tabs",
+ui = navbarPage("", theme = shinytheme("simplex"), id = "tabs",
                 tabPanel("Login",
                         loginpage
                 ),
                 tabPanel("Importação",
                          dashboardPage(
                            dashboardHeader(disable = TRUE),
-                           dashboardSidebar(
-                             checkboxInput("hide.ajuste", "Esconder aba ajuste")
-                           ),
+                           dashboardSidebar( ),
                            dashboardBody("Essa é a página de importação dos dados",
                              verbatimTextOutput("status")
                            )
@@ -90,6 +82,7 @@ ui = navbarPage("Modelo Híbrido", theme = shinytheme("simplex"), id = "tabs",
 
 server <- function(input, output, session) {
   
+  # Verificação do login
   login = FALSE
   USER <- reactiveValues(login = login)
   
@@ -105,12 +98,14 @@ server <- function(input, output, session) {
             if(pasverify) {
               USER$login <- TRUE
             } else {
-              shinyjs::toggle(id = "nomatch", anim = TRUE, time = 1, animType = "fade")
-              shinyjs::delay(3000, shinyjs::toggle(id = "nomatch", anim = TRUE, time = 1, animType = "fade"))
+              
+              output$avisologin = renderText({"Senha ou usuário incorreto"})
+              
             }
           } else {
-            shinyjs::toggle(id = "nomatch", anim = TRUE, time = 1, animType = "fade")
-            shinyjs::delay(3000, shinyjs::toggle(id = "nomatch", anim = TRUE, time = 1, animType = "fade"))
+            
+            output$avisologin = renderText({"Senha ou usuário incorreto"})
+          
           }
         } 
       }
@@ -125,14 +120,18 @@ server <- function(input, output, session) {
       showTab("tabs", "Arima")
       showTab("tabs", "Rede Neural")
       showTab("tabs", "Resultados")
+      hideTab("tabs", "Login")
           } else {
       hideTab("tabs", "Importação")
       hideTab("tabs", "Ajuste")
       hideTab("tabs", "Arima")
       hideTab("tabs", "Rede Neural")
       hideTab("tabs", "Resultados")
+      showTab("tabs", "Login")
     }
   })
+  
+  # Botão de Logout
   output$logoutbtn <- renderUI({
     req(USER$login)
     tags$li(a(icon("fa fa-sign-out"), "Logout", 
