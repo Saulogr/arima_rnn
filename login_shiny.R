@@ -4,6 +4,8 @@ library(DT)
 library(shinyjs)
 library(sodium)
 library(shinythemes)
+library(tidyverse)
+library(forecast)
 
 # Main login screen
 loginpage <-
@@ -11,23 +13,23 @@ loginpage <-
     id = "loginpage",
     style = "width: 500px; max-width: 100%; margin: 0 auto; padding: 20px;",
     wellPanel(
-      tags$h2("LOG IN", class = "text-center", style = "padding-top: 0;color:#333; font-weight:600;"),
+      tags$h2("Login", class = "text-center", style = "padding-top: 0;color:#333; font-weight:600;"),
       textInput(
         "userName",
         placeholder = "Username",
-        label = tagList(icon("user"), "Username")
+        label = tagList(icon("user"), "Usuário")
       ),
       passwordInput(
         "passwd",
         placeholder = "Password",
-        label = tagList(icon("unlock-alt"), "Password")
+        label = tagList(icon("unlock-alt"), "Senha")
       ),
       br(),
       div(
         style = "text-align: center;",
         actionButton(
           "login",
-          "SIGN IN",
+          "ENTRAR",
           style = "color: white; background-color:#3c8dbc;
                                  padding: 10px 15px; width: 150px; cursor: pointer;
                                  font-size: 18px; font-weight: 600;"
@@ -59,10 +61,43 @@ ui = navbarPage(
     "Importação",
     dashboardPage(
       dashboardHeader(disable = TRUE),
-      dashboardSidebar(),
+      dashboardSidebar(
+        # Comandos para importação dos dados da série temporal
+        h4("Importação dos dados"),
+        hr(),
+        fileInput("ts",
+                  "Selecione o arquivo",
+                  accept = ".csv"),
+        checkboxInput("header",
+                      "A tabela possui cabeçalho",
+                      value = TRUE),
+        radioButtons("delim",
+                     "Delimitador",
+                     choices = c("Ponto e vírgula"= ";",
+                                 "Vírgula"=  ",",
+                                 "Espaço em branco"= " "),
+                     selected = ";"),
+        h4(strong("Configuração da série temporal")),
+        tags$hr(),
+        uiOutput("ColumnSelector") ,
+        numericInput("period", 
+                     "Qual a frequência da série?",
+                     value = 1,
+                     min = 0),
+        
+        dateRangeInput("intervalo",
+                       "Data inicial e final da série",
+                       format = "dd-mm-yyyy",
+                       language = "pt",
+                       min = "1900-01-01")
+      ),
       dashboardBody(
-        "Essa é a página de importação dos dados",
-        verbatimTextOutput("status")
+        # Dividindo em objetos verticais
+        h3(p(strong("Série temporal selecionada"))),
+        plotOutput("plotts"),
+        # Plotando o resumo da série
+        h3(p(strong("Série ajustada"))),
+        tableOutput("resumo.ts")
       )
     )
     
@@ -170,13 +205,89 @@ server <- function(input, output, session) {
     )
   })
   
-  
-  output$results <-  DT::renderDataTable({
-    datatable(iris, options = list(autoWidth = TRUE,
-                                   searching = FALSE))
+  # Selecionado o banco de dados de forma reativa
+  datasetInput <- reactive({
+    arquivo = input$ts
+    if (is.null(arquivo)){
+      return(NULL) 
+    } else {
+      read.csv(input$ts$datapath, header = input$header,
+               sep = input$delim)
+    }
   })
   
-  output$status = renderPrint(USER$login)
+  # Selecionado a série temporal que será usada de forma dinâmica
+  serieTemporal = reactive({
+    if (is.null(datasetInput())){
+      return(NULL) 
+    } else {
+      # Extraindo o dia inicial
+      dia.in =as.numeric(gsub("^([0-9]*)-([0-9]*)-([0-9]*)$",
+                              "\\3", input$intervalo[1]))
+      # Extraindo o mes inicial
+      mes.in =as.numeric(gsub("^([0-9]*)-([0-9]*)-([0-9]*)$",
+                              "\\2", input$intervalo[1]))
+      # Extraindo o ano inicial
+      ano.in =as.numeric(gsub("^([0-9]*)-([0-9]*)-([0-9]*)$",
+                              "\\1", input$intervalo[1]))
+      # Extraindo o dia final
+      dia.out = as.numeric(gsub("^([0-9]*)-([0-9]*)-([0-9]*)$",
+                                "\\3", input$intervalo[2]))
+      # Extraindo o mes inicial
+      mes.out =as.numeric(gsub("^([0-9]*)-([0-9]*)-([0-9]*)$",
+                               "\\2", input$intervalo[2]))
+      # Extraindo o ano final
+      ano.out =as.numeric(gsub("^([0-9]*)-([0-9]*)-([0-9]*)$",
+                               "\\1", input$intervalo[2]))
+      ts(select(datasetInput(), input$SelectedColumn), 
+         start = c(ano.in, mes.in, dia.in),
+         end = c(ano.out, mes.out, dia.out),
+         frequency = input$period)
+    }
+  })
+  
+  # Resumindo a série temporal
+  output$resumo.ts = renderTable({
+    if (is.null(datasetInput())) {
+      return(NULL)
+    } else {
+    Month <-  factor(cycle(serieTemporal()),
+                     levels = 1:12, labels = month.abb)
+    data.frame(tapply(serieTemporal(),
+                      list(year = floor(time(serieTemporal())),
+                           month = Month), c))
+    }
+  })
+  
+  # Gerando a UI de forma dinâmica
+  output$ColumnSelector <- renderUI({
+    selectInput("SelectedColumn",
+                "Em qual coluna está a série", 
+                choices = colnames(datasetInput()))
+  })
+  
+  # Plotando o o gráfico da série temporal
+  output$plotts = renderPlot({
+    
+    if (is.null(datasetInput())){
+      return(NULL) 
+    } else {
+      # Extraindo o ano inicial
+      
+      ggplot(serieTemporal(), aes(x, y))+
+        geom_line(color = "#E7B800", size = 1)+
+        theme_minimal()+
+        theme(panel.border = element_rect(fill = NA),
+              axis.title = element_text(face = "bold",
+                                        size = 12))+
+        labs(x = "Período",
+             y = "Total")
+      
+      
+    }
+    
+  })
+  
   
 }
 
