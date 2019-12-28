@@ -102,15 +102,7 @@ ui = navbarPage(
     )
     
   ),
-  tabPanel(
-    "Ajuste",
-    dashboardPage(
-      dashboardHeader(disable = TRUE),
-      dashboardSidebar(),
-      dashboardBody("Essa é a página de ajsute da Série temporal")
-    )
-    
-  ),
+  
   tabPanel(
     "Arima",
     dashboardPage(
