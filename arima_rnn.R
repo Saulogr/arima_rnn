@@ -7,8 +7,18 @@ library(shinythemes)
 library(tidyverse)
 library(forecast)
 
-# Main login screen
-loginpage <-
+# Banco de dados com as credenciais
+credentials = data.frame(
+  username_id = c("", "myuser1"),
+  passod   = sapply(c("", "mypass1"), password_store),
+  permission  = c("basic", "advanced"),
+  stringsAsFactors = F
+)
+
+# Criação da interface
+
+# Tela de login
+loginpage =
   div(
     id = "loginpage",
     style = "width: 500px; max-width: 100%; margin: 0 auto; padding: 20px;",
@@ -43,14 +53,77 @@ loginpage <-
     )
   )
 
-credentials = data.frame(
-  username_id = c("myuser", "myuser1"),
-  passod   = sapply(c("mypass", "mypass1"), password_store),
-  permission  = c("basic", "advanced"),
-  stringsAsFactors = F
+# Página de importação de ajuste da série temporal
+importpage = dashboardPage(
+  dashboardHeader(disable = TRUE),
+  dashboardSidebar(
+    # Comandos para importação dos dados da série temporal
+    h4("Importação dos dados", style = "color: white; font-size: 18px; font-weight: 600"),
+    hr(),
+    fileInput("ts",
+              "Selecione o arquivo",
+              accept = ".csv"),
+    checkboxInput("header",
+                  "A tabela possui cabeçalho",
+                  value = TRUE),
+    radioButtons("delim",
+                 "Delimitador",
+                 choices = c("Ponto e vírgula"= ";",
+                             "Vírgula"=  ",",
+                             "Espaço em branco"= " "),
+                 selected = ";"),
+    br(),
+    h4("Configuração da série temporal", style = "color: white; font-size: 18px; font-weight: 600"),
+    tags$hr(),
+    uiOutput("ColumnSelector") ,
+    numericInput("period", 
+                 "Qual a frequência da série?",
+                 value = 1,
+                 min = 0),
+    
+    dateRangeInput("intervalo",
+                   "Data inicial e final da série",
+                   format = "dd-mm-yyyy",
+                   language = "pt",
+                   min = "1900-01-01")
+  ),
+  dashboardBody(
+    # Dividindo em objetos verticais
+    h3(p(strong("Série temporal selecionada"))),
+    plotOutput("plotts"),
+    # Plotando o resumo da série
+    h3(p(strong("Série ajustada"))),
+    tableOutput("resumo.ts")
+  )
 )
 
-# Criação da interface
+
+# Página de ajsute do arima
+arimapage = 
+  dashboardPage(
+    dashboardHeader(disable = TRUE),
+    dashboardSidebar(
+      h4("Ajuste do modelo ARIMA", style = "color: white; font-size: 18px; font-weight: 600"),
+      tags$hr(),
+      radioButtons("selectarima",
+                   "Qual abordagem quer utilizar?",
+                   choices = c("Ajuste automático"= "autoarima",
+                               "Ajustar manualmente"=  "manualarima",
+                               "Fazer upload do modelo já ajustado"= "uploadarima"),
+                   selected = "autoarima"),
+      tags$hr(),
+      uiOutput("arimaui"),
+      tags$hr()
+    ),
+    dashboardBody(
+      h5("Resumo do modelo ajustado"),
+      verbatimTextOutput("resumoarima"),
+      h5("Diagnóstico do modelo ajustado"),
+      plotOutput("tsdiag")
+    )
+  )
+
+# Gerar o objeto de interface
 ui = navbarPage(
   "",
   theme = shinytheme("simplex"),
@@ -58,60 +131,9 @@ ui = navbarPage(
   tabPanel("Login",
            loginpage),
   tabPanel(
-    "Importação",
-    dashboardPage(
-      dashboardHeader(disable = TRUE),
-      dashboardSidebar(
-        # Comandos para importação dos dados da série temporal
-        h4("Importação dos dados"),
-        hr(),
-        fileInput("ts",
-                  "Selecione o arquivo",
-                  accept = ".csv"),
-        checkboxInput("header",
-                      "A tabela possui cabeçalho",
-                      value = TRUE),
-        radioButtons("delim",
-                     "Delimitador",
-                     choices = c("Ponto e vírgula"= ";",
-                                 "Vírgula"=  ",",
-                                 "Espaço em branco"= " "),
-                     selected = ";"),
-        h4(strong("Configuração da série temporal")),
-        tags$hr(),
-        uiOutput("ColumnSelector") ,
-        numericInput("period", 
-                     "Qual a frequência da série?",
-                     value = 1,
-                     min = 0),
-        
-        dateRangeInput("intervalo",
-                       "Data inicial e final da série",
-                       format = "dd-mm-yyyy",
-                       language = "pt",
-                       min = "1900-01-01")
-      ),
-      dashboardBody(
-        # Dividindo em objetos verticais
-        h3(p(strong("Série temporal selecionada"))),
-        plotOutput("plotts"),
-        # Plotando o resumo da série
-        h3(p(strong("Série ajustada"))),
-        tableOutput("resumo.ts")
-      )
-    )
-    
-  ),
-  
+    "Importação", importpage),
   tabPanel(
-    "Arima",
-    dashboardPage(
-      dashboardHeader(disable = TRUE),
-      dashboardSidebar(),
-      dashboardBody("Essa é a página de ajsute do ARIMA")
-    )
-    
-  ),
+    "Arima",arimapage),
   tabPanel(
     "Rede Neural",
     dashboardPage(
@@ -266,21 +288,64 @@ server <- function(input, output, session) {
     } else {
       # Extraindo o ano inicial
       
-      ggplot(serieTemporal(), aes(x, y))+
+      try(ggplot(serieTemporal(), aes(x, y))+
         geom_line(color = "#E7B800", size = 1)+
         theme_minimal()+
         theme(panel.border = element_rect(fill = NA),
               axis.title = element_text(face = "bold",
                                         size = 12))+
         labs(x = "Período",
-             y = "Total")
+             y = "Total"))
       
       
     }
     
   })
+
+
+  # Gerando a ui para o arima
+  output$arimaui = renderUI({
+    if (input$selectarima == "autoarima"){
+      return(NULL)
+    } else if (input$selectarima == "manualarima"){
+      tagList(
+        sliderInput("p", "Coeficiente P do (AR)IMA: AR",min = 0, max = 10, value = 0),
+        sliderInput("d", "Coeficiente D AR(I)MA: I",min = 0, max = 10, value = 0),
+        sliderInput("q", "Coeficiente Q do ARI(MA): MA",min = 0, max = 10, value = 0))
+    }else {
+      fileInput("modelarima", "Selecione o modelo .Rdata",accept = ".Rdata")
+    }
+  })
+  # Ajustando o ARIMA para a série
+  arima.ts = reactive({
+    if (input$selectarima == "autoarima"){
+      auto.arima(serieTemporal())
+    } else if (input$selectarima == "manualarima"){
+      Arima(serieTemporal(), order = c(input$p, input$d, input$q))
+    }else {
+      readRDS(input$modelarima$datapath)
+    }
+    
+  })
   
+  # Gerando um resumo do modelo Arima
+  output$resumoarima = renderPrint({
+    if (is.null(serieTemporal())){
+      return("Nenhuma série selecionada")
+    } else {
+      arima.ts()
+    }
+  })
   
+  # Gerando gráfico do diagnóstico
+  output$tsdiag = renderPlot({
+    if (is.null(serieTemporal())){
+      return(NULL) 
+    } else {
+      try(tsdiag(arima.ts()))
+    }
+  })
+
 }
 
 shinyApp(ui, server)
