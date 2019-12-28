@@ -78,14 +78,17 @@ importpage = dashboardPage(
     uiOutput("ColumnSelector") ,
     numericInput("period", 
                  "Qual a frequência da série?",
-                 value = 1,
+                 value = 12,
                  min = 0),
     
     dateRangeInput("intervalo",
                    "Data inicial e final da série",
                    format = "dd-mm-yyyy",
                    language = "pt",
-                   min = "1900-01-01")
+                   min = "1900-01-01",
+                   start = "01-01-2003",
+                   end = "30-04-2019",
+                   startview = "year")
   ),
   dashboardBody(
     # Dividindo em objetos verticais
@@ -295,7 +298,7 @@ server <- function(input, output, session) {
               axis.title = element_text(face = "bold",
                                         size = 12))+
         labs(x = "Período",
-             y = "Total"))
+             y = "Total"), silent = TRUE)
       
       
     }
@@ -342,7 +345,7 @@ server <- function(input, output, session) {
     if (is.null(serieTemporal())){
       return(NULL) 
     } else {
-      try(tsdiag(arima.ts()))
+      try(tsdiag(arima.ts()), silent = FALSE)
     }
   })
 
